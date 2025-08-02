@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fetal Health Prediction</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            background-image: url('https://i.postimg.cc/SRRyP5Cv/background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            font-family: 'Poppins', 'Helvetica', sans-serif;
+            color: #333;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            margin-top: 30px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .result-box {
+            margin-top: 30px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+        .normal {
+            background-color: #d1f7e2;
+            color: #116944;
+        }
+        .suspect {
+            background-color: #fff9db;
+            color: #8a6d1d;
+        }
+        .pathological {
+            background-color: #ffe5e7;
+            color: #a94442;
+        }
+        h1, h4, h5 {
+            margin-bottom: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+            text-align: center;
+            animation: fadeInDown 1s ease;
+        }
+        label {
+            font-weight: 500;
+        }
+        .btn-predict {
+            background-color: #00bcd4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 50px;
+        }
+        .btn-reset {
+            background-color: #9e9e9e;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 50px;
+        }
+        .btn-demo {
+            margin: 5px;
+            border-radius: 50px;
+            font-size: 14px;
+        }
+        .progress {
+            height: 25px;
+            background-color: #e0e0e0;
+            border-radius: 50px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            text-align: center;
+            font-weight: bold;
+            border-radius: 50px;
+        }
+        .progress-normal {
+            background-color: #4caf50;
+        }
+        .progress-suspect {
+            background-color: #ffc107;
+        }
+        .progress-pathological {
+            background-color: #f44336;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Fetal Health Prediction</h1>
+        
+        <form id="prediction-form">
+            <div class="row">
+                {% for feature in feature_names %}
+                <div class="col-md-6 form-group">
+                    <label for="{{ feature }}">{{ feature|replace('_', ' ')|title }}</label>
+                    <input type="number" class="form-control" id="{{ feature }}" name="{{ feature }}" step="0.001" required>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="text-center mt-4">
+                <button type="submit" class="btn btn-predict">Predict</button>
+                <button type="reset" class="btn btn-reset">Reset</button>
+            </div>
+        </form>
+        
+        <div class="text-center mt-3">
+            <h5>Load Demo Data:</h5>
+            <button class="btn btn-success btn-demo" id="demo-normal">Normal Example</button>
+            <button class="btn btn-warning btn-demo" id="demo-suspect">Suspect Example</button>
+            <button class="btn btn-danger btn-demo" id="demo-pathological">Pathological Example</button>
+        </div>
+        
+        <div id="result" class="result-box text-center">
+            <h3>Prediction Result:</h3>
+            <h2 id="prediction-text"></h2>
+            
+            <div class="mt-4">
+                <h4>Prediction Probabilities:</h4>
+                <div class="progress">
+                    <div class="progress-bar progress-normal" id="normal-prob" role="progressbar" style="width: 0%;">
+                        Normal: 0%
+                    </div>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar progress-suspect" id="suspect-prob" role="progressbar" style="width: 0%;">
+                        Suspect: 0%
+                    </div>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar progress-pathological" id="pathological-prob" role="progressbar" style="width: 0%;">
+                        Pathological: 0%
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <h4>Prediction Categories:</h4>
+            <ul>
+                <li><strong>Normal (1):</strong> Indicates healthy fetus with normal cardiac function.</li>
+                <li><strong>Suspect (2):</strong> Indicates potential issues that require monitoring.</li>
+                <li><strong>Pathological (3):</strong> Indicates serious concerns that require immediate attention.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Demo data
+        const demoData = {
+            normal: {
+                baseline_value: 133,
+                accelerations: 0.003,
+                fetal_movement: 0,
+                uterine_contractions: 0.008,
+                light_decelerations: 0.003,
+                severe_decelerations: 0,
+                prolonged_decelerations: 0,
+                abnormal_short_term_variability: 16,
+                mean_short_term_variability: 2.1,
+                percentage_abnormal_long_term_variability: 0,
+                mean_long_term_variability: 13.4,
+                histogram_width: 130,
+                histogram_min: 68,
+                histogram_max: 198,
+                histogram_peaks: 5,
+                histogram_zeroes: 1,
+                histogram_mode: 141,
+                histogram_mean: 135,
+                histogram_median: 138,
+                histogram_variance: 13,
+                histogram_tendency: 0
+            },
+            suspect: {
+                baseline_value: 151,
+                accelerations: 0,
+                fetal_movement: 0,
+                uterine_contractions: 0.001,
+                light_decelerations: 0.001,
+                severe_decelerations: 0,
+                prolonged_decelerations: 0,
+                abnormal_short_term_variability: 64,
+                mean_short_term_variability: 1.9,
+                percentage_abnormal_long_term_variability: 9,
+                mean_long_term_variability: 27.6,
+                histogram_width: 130,
+                histogram_min: 56,
+                histogram_max: 186,
+                histogram_peaks: 2,
+                histogram_zeroes: 0,
+                histogram_mode: 150,
+                histogram_mean: 148,
+                histogram_median: 151,
+                histogram_variance: 9,
+                histogram_tendency: 1
+            },
+            pathological: {
+                baseline_value: 134,
+                accelerations: 0.001,
+                fetal_movement: 0,
+                uterine_contractions: 0.013,
+                light_decelerations: 0.008,
+                severe_decelerations: 0,
+                prolonged_decelerations: 0.003,
+                abnormal_short_term_variability: 29,
+                mean_short_term_variability: 6.3,
+                percentage_abnormal_long_term_variability: 0,
+                mean_long_term_variability: 0,
+                histogram_width: 150,
+                histogram_min: 50,
+                histogram_max: 200,
+                histogram_peaks: 6,
+                histogram_zeroes: 3,
+                histogram_mode: 71,
+                histogram_mean: 107,
+                histogram_median: 106,
+                histogram_variance: 215,
+                histogram_tendency: 0
+            }
+        };
+
+        // Functions to load demo data
+        function loadDemoData(dataType) {
+            const data = demoData[dataType];
+            for (const feature in data) {
+                document.getElementById(feature).value = data[feature];
+            }
+        }
+
+        document.getElementById('demo-normal').addEventListener('click', function() {
+            loadDemoData('normal');
+        });
+        
+        document.getElementById('demo-suspect').addEventListener('click', function() {
+            loadDemoData('suspect');
+        });
+        
+        document.getElementById('demo-pathological').addEventListener('click', function() {
+            loadDemoData('pathological');
+        });
+
+        document.getElementById('prediction-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            fetch('/predict', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultDiv = document.getElementById('result');
+                const predictionText = document.getElementById('prediction-text');
+                
+                resultDiv.style.display = 'block';
+                
+                if (data.error) {
+                    resultDiv.className = 'result-box suspect';
+                    predictionText.textContent = data.error;
+                } else {
+                    predictionText.textContent = data.result;
+                    if (data.result === 'Normal') {
+                        resultDiv.className = 'result-box normal';
+                    } else if (data.result === 'Suspect') {
+                        resultDiv.className = 'result-box suspect';
+                    } else if (data.result === 'Pathological') {
+                        resultDiv.className = 'result-box pathological';
+                    } else {
+                        resultDiv.className = 'result-box';
+                    }
+                    if (data.probabilities) {
+                        document.getElementById('normal-prob').style.width = data.probabilities.Normal;
+                        document.getElementById('normal-prob').textContent = 'Normal: ' + data.probabilities.Normal;
+                        
+                        document.getElementById('suspect-prob').style.width = data.probabilities.Suspect;
+                        document.getElementById('suspect-prob').textContent = 'Suspect: ' + data.probabilities.Suspect;
+                        
+                        document.getElementById('pathological-prob').style.width = data.probabilities.Pathological;
+                        document.getElementById('pathological-prob').textContent = 'Pathological: ' + data.probabilities.Pathological;
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const resultDiv = document.getElementById('result');
+                const predictionText = document.getElementById('prediction-text');
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result-box pathological';
+                predictionText.textContent = 'An error occurred while processing your request.';
+            });
+        });
+
+        document.querySelector('.btn-reset').addEventListener('click', function() {
+            document.getElementById('result').style.display = 'none';
+        });
+    </script>
+
+</body>
+</html>
