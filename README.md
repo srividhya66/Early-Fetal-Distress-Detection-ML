@@ -91,3 +91,24 @@ Deploy on Render or HuggingFace Spaces
 
 📚 References
 Kaggle: Fetal Health Classification
+
+🧪 Evaluation Metrics
+
+✅ AUROC & AUPRC – for imbalanced data
+
+❤️ Sensitivity (Recall for distress) – to catch critical cases
+
+🔒 Specificity – to reduce false alarms
+
+⚖️ F1-score – balance precision & recall
+
+🔍 Methodology
+
+1️⃣ Preprocessing: Missing values, normalization, artifact removal
+2️⃣ Feature Engineering:
+
+FHR 📉: mean, variance, accelerations, decelerations
+
+UC 📊: contraction duration, frequency, correlation with FHR
+3️⃣ Modeling: Stratified CV + hyperparameter tuning
+4️⃣ Explainability: SHAP + feature importance
